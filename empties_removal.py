@@ -26,14 +26,13 @@ Casts which contain no measurements in any of the variables will be removed.
 
 #Create the .nc files which flag the empty casts
 #Background info
-source = 'netcdf_gen'
 path = '/gpfs/fs7/dfo/dpnm/joc000/Data/AZMP/Data_Input/NetCDF_Gen/'
 
 #Currently a problem with the naming of sigma-t, look into later
 
 #First, create a list of .nc files in each path
 #nc_list = glob.glob(path+'*.nc')
-nc_list = [path+i+'.nc' for i in np.arange(1912,2021+1).astype(str)]
+nc_list = [path+i+'.nc' for i in np.arange(1912,2022+1).astype(str)]
 
 for i in np.sort(nc_list)[:]:
 
@@ -46,21 +45,14 @@ for i in np.sort(nc_list)[:]:
 	#Set the nan values to missing
 	year = i[-7:-3]
 
-	##NEW VERSION USING XARRAY
-
 	#Load in the dataset of interest
 	ds = xr.open_dataset(i)
 
 	#Run through each variable and determine the number of nans (missing) in each
 	#Pre-define cut-offs for each variable that are non-realistic
 	cutoff = {
-	'temperature':	[-2,25],
+	'temperature':	[-2,35],
 	'salinity':		[0,45],
-	'conductivity':	[-1e9,1e9],
-	'oxygen':		[-1e9,1e9],
-	'fluorescence':	[-1e9,1e9],
-	'irradiance':	[-1e9,1e9],
-	'ph':			[-1e9,1e9],
 	}
 
 	#Load in each of the variables one at a time
@@ -77,12 +69,47 @@ for i in np.sort(nc_list)[:]:
 
 	#Determine if a cast is completely empty
 	missing = np.stack([missing[ii] for ii in cutoff.keys()])
-	missing = missing.sum(axis=0) == missing.shape[0]*2000
+	missing = missing.sum(axis=0) == missing.shape[0]*ds.level.size
+
+	#Remove the empty casts
+	ds = ds.sel(time=~missing)
+
+	#Remove BA casts
+	ds = ds.sel(time=~(ds.instrument_ID == 'FAPBA'))
+	ds = ds.sel(time=~(ds.instrument_ID == 'MEDBA'))
+
+	#Remove non-constant spacing MB
+	path_pfile = '/gpfs/fs7/dfo/dpnm/joc000/Data/AZMP/Data_Input/NetCDF_Gen/pfiles_1912-2022/'
+	MB_flag = np.zeros(ds.time.size).astype(bool) 
+	instrument_ID = ds.instrument_ID.values
+	comments = ds.comments.values
+
+	for i in np.arange(MB_flag.size):
+
+		#Check to see if cast is MB 
+		if str(instrument_ID[i]) == 'FAPMB':
+
+			#Check to see if comment is five characters
+			if len(str(comments[i])) == 5:
+
+				#Check to see if comment starts with 39
+				if str(comments[i]).startswith('39'):
+
+					#Record as a constant spacing pfile
+					MB_flag[i] = True
+
+	#Remove the flagged MBs
+	ds = ds.sel(time=~MB_flag)
+
+
+	#Flatten the values inside the string variables
+	for ii in ['trip_ID','comments','instrument_ID','instrument_type','file_names']:
+		ds[ii] = ds[ii].astype(str)
 
 	#Save the data now with the empty casts removed
-	ds = ds.isel(time=~missing)
 	ds.to_netcdf(path+'empties_duplicates/empties/'+year+'.nc')
 	ds.close()
 
 	print(year+', empty cast removal done.')
+
 
