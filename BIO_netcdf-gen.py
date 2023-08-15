@@ -37,10 +37,10 @@ years = np.arange(
 	rfile['climate_stations'].CRUISE_DATE.values.max().astype('datetime64[Y]').astype(int)+1970+1)
 
 #Cycle through each year
-for year in years[67:]:
+for year in years[:]:
 	
 	#Set up the .nc file
-	nc_out = nc.Dataset(path+'NetCDF/'+str(year)+'.nc','w')
+	nc_out = nc.Dataset(path+'NetCDF/'+file_name+'/'+str(year)+'_temporary.nc','w')
 	
 	#File information
 	nc_out.Conventions = 'CF-1.6' #Ask Fred what this means
@@ -52,7 +52,7 @@ for year in years[67:]:
 	nc_out.history = 'Created ' + tt.ctime(tt.time())
 
 	#Create dimensions
-	max_depth = 2000
+	max_depth = 5000
 	time = nc_out.createDimension('time', None) #use date2 for this
 	level = nc_out.createDimension('level', max_depth) 
 
@@ -61,18 +61,18 @@ for year in years[67:]:
 	levels = nc_out.createVariable('level', np.int32, ('level',))
 
 	#Create 1D variables
-	cruise_id = nc_out.createVariable('Cruiseid', float, ('time'), zlib=True)
+	cruise_id = nc_out.createVariable('Cruiseid', str, ('time'), zlib=True)
 	latitudes = nc_out.createVariable('latitude', np.float32, ('time'), zlib=True)
 	longitudes = nc_out.createVariable('longitude', np.float32, ('time'), zlib=True)
-	cruisedate = nc_out.createVariable('cruisedate', float, ('time'), zlib=True)
+	cruisedate = nc_out.createVariable('cruisedate', str, ('time'), zlib=True)
 	cruisetime = nc_out.createVariable('cruisetime', np.float32, ('time'), zlib=True)
 	stnid = nc_out.createVariable('Stnid', np.float32, ('time'), zlib=True)
-	datatype = nc_out.createVariable('datatype', float, ('time'), zlib=True)
+	datatype = nc_out.createVariable('datatype', str, ('time'), zlib=True)
 	maximumdepth = nc_out.createVariable('maximumdepth', np.float32, ('time'), zlib=True)
-	flag = nc_out.createVariable('flag', float, ('time'), zlib=True)
+	flag = nc_out.createVariable('flag', str, ('time'), zlib=True)
 	samplecount = nc_out.createVariable('samplecount', np.float32, ('time'), zlib=True)
-	update = nc_out.createVariable('update', float, ('time'), zlib=True)
-	interpolated = nc_out.createVariable('interpolated', float, ('time'), zlib=True)
+	update = nc_out.createVariable('update', str, ('time'), zlib=True)
+	interpolated = nc_out.createVariable('interpolated', str, ('time'), zlib=True)
 
 	#Create 2D variables
 	#Each data variable is marked with a station ID
@@ -88,7 +88,7 @@ for year in years[67:]:
 	# Variable Attributes
 	latitudes.units = 'degree_north'
 	longitudes.units = 'degree_east'
-	times.units = 'hours since 1900-01-01 00:00:00'
+	times.units = 'seconds since 1900-01-01 00:00:00'
 	times.calendar = 'gregorian'
 	levels.units = 'dbar'
 	levels.standard_name = "pressure"
@@ -115,19 +115,18 @@ for year in years[67:]:
 	filt = filt[np.argsort(rfile['climate_stations'].CRUISE_DATE.values[filt])]
 
 	#Fill in the 1D variables 
-	cruise_id[:] = np.array([int.from_bytes(str(i).encode('latin-1'),'big') for i in rfile['climate_stations'].CRUISE_ID.values[filt]])
-
+	cruise_id[:] = rfile['climate_stations'].CRUISE_ID.values[filt].astype(str)
 	latitudes[:] = rfile['climate_stations'].LATITUDE.values[filt]
 	longitudes[:] = rfile['climate_stations'].LONGITUDE.values[filt]
-	cruisedate[:] = np.array([int.from_bytes(str(i).encode('latin-1'),'big') for i in rfile['climate_stations'].CRUISE_DATE.values[filt].astype(str)])
+	cruisedate[:] = rfile['climate_stations'].CRUISE_DATE.values[filt].astype(str)
 	cruisetime[:] = rfile['climate_stations'].CRUISE_TIME.values[filt]
 	stnid[:] = rfile['climate_stations'].STN_ID.values[filt]
-	datatype[:] = np.array([int.from_bytes(str(i).encode('latin-1'),'big') for i in rfile['climate_stations'].DATATYPE.values[filt]])
+	datatype[:] = rfile['climate_stations'].DATATYPE.values[filt].astype(str)
 	maximumdepth[:] = rfile['climate_stations'].MAXIMUM_DEPTH.values[filt]
-	flag[:] = np.array([int.from_bytes(str(i).encode('latin-1'),'big') for i in rfile['climate_stations'].FLAG.values[filt]])
+	flag[:] = rfile['climate_stations'].FLAG.values[filt].astype(str)
 	samplecount[:] = rfile['climate_stations'].SAMPLE_COUNT.values[filt]
-	update[:] = np.array([int.from_bytes(str(i).encode('latin-1'),'big') for i in rfile['climate_stations'].UP_DATE.values[filt].astype(str)])
-	interpolated[:] = np.array([int.from_bytes(str(i).encode('latin-1'),'big') for i in rfile['climate_stations'].INTERPOLATED.values[filt].astype(str)])
+	update[:] = rfile['climate_stations'].UP_DATE.values[filt].astype(str)
+	interpolated[:] = rfile['climate_stations'].INTERPOLATED.values[filt].astype(str)
 
 
 	#Re-format the 'data' variables into a 2D array
@@ -152,13 +151,13 @@ for year in years[67:]:
 
 	#Filter 2D arrays for non-physical recordings and set to nan
 	cutoff = {
-	'temperature':	[-2,25],
+	'temperature':	[-2,35],
 	'salinity':		[0,45],
 	}
-	temp2D[temp2D <= cutoff['temperature'][0]] == np.nan
-	temp2D[temp2D >= cutoff['temperature'][1]] == np.nan
-	saln2D[saln2D <= cutoff['salinity'][0]] == np.nan
-	saln2D[saln2D >= cutoff['salinity'][1]] == np.nan
+	temp2D[temp2D <= cutoff['temperature'][0]] = np.nan
+	temp2D[temp2D >= cutoff['temperature'][1]] = np.nan
+	saln2D[saln2D <= cutoff['salinity'][0]] = np.nan
+	saln2D[saln2D >= cutoff['salinity'][1]] = np.nan
 
 	#Fill 2D structure
 	temp[:,:] = temp2D
@@ -175,10 +174,45 @@ for year in years[67:]:
 	nc_out.close()
 	print(str(year)+' done.')
 
+#Cycle through each year and convert byte variables to strings
+for year in years:
+
+	#Open the dataset
+	ds = xr.open_dataset(path+'NetCDF/'+file_name+'/'+str(year)+'_temporary.nc')
+
+	#Add the file name variable
+	ds['file_names'] = (('time'), np.tile(file_name,ds.time.size))
+	#Remove the 'TE' and 'BA' datatype files (TESAC GTS and BATHY GTS)
+	ds = ds.sel(time = ds.datatype != 'TE')
+	ds = ds.sel(time = ds.datatype != 'BA')
+
+	#Re-covert objects to strings
+	for i in ['Cruiseid','cruisedate','datatype','flag','update','interpolated','file_names']:
+		ds[i] = ds[i].astype(str)
+
+	#Re-save the netcdf file
+	if ds.time.size > 0:
+		ds.to_netcdf(path+'NetCDF/'+file_name+'/'+str(year)+'.nc','w')
+	ds.close()
+
+	#Remove the temporary file
+	expr = 'rm '+path+'NetCDF/'+file_name+'/'+str(year)+'_temporary.nc'
+	os.system(expr)
+	print(str(year)+' done.')
+
+
+
 
 
 ##########################################################################################################
 ##(2) - Post-2008 Script, Used for database_2008-2017.RData and database_2018.RData
+
+#Import one of the .RData files
+file_name = 'database_2018'
+path = '/gpfs/fs7/dfo/dpnm/joc000/Data/AZMP/Data_Input/CCAS20/'
+
+#Load in the .RData file you want to convert
+rfile = pyreadr.read_r(path+'R_Files/'+file_name+'.RData')
 
 #Find out which years are covered by the file
 years = np.arange(
@@ -189,7 +223,7 @@ years = np.arange(
 for year in years:
 	
 	#Create a .nc file
-	nc_out = nc.Dataset(path+'NetCDF/'+str(year)+'.nc','w')
+	nc_out = nc.Dataset(path+'NetCDF/'+file_name+'/'+str(year)+'_temporary.nc','w')
 
 	#File information
 	nc_out.Conventions = 'CF-1.6' #Ask Fred what this means
@@ -201,7 +235,7 @@ for year in years:
 	nc_out.history = 'Created ' + tt.ctime(tt.time())
 
 	#Create dimensions
-	max_depth = 2000
+	max_depth = 5000
 	time = nc_out.createDimension('time', None) #use date2 for this
 	level = nc_out.createDimension('level', max_depth) 
 
@@ -210,12 +244,13 @@ for year in years:
 	levels = nc_out.createVariable('level', np.int32, ('level',))
 
 	#Create 1D variables
-	cruise_id = nc_out.createVariable('Cruiseid', float, ('time'), zlib=True)
+	cruise_id = nc_out.createVariable('Cruiseid', str, ('time'), zlib=True)
 	latitudes = nc_out.createVariable('latitude', np.float32, ('time'), zlib=True)
 	longitudes = nc_out.createVariable('longitude', np.float32, ('time'), zlib=True)
-	cruisedate = nc_out.createVariable('cruisedate', float, ('time'), zlib=True)
-	cruisetime = nc_out.createVariable('cruisetime', np.float32, ('time'), zlib=True)
-	stnid = nc_out.createVariable('Stnid', np.float32, ('time'), zlib=True)
+	cruisedate = nc_out.createVariable('cruisedate', str, ('time'), zlib=True)
+	cruisetime = nc_out.createVariable('cruisetime', str, ('time'), zlib=True)
+	stnid = nc_out.createVariable('Stnid', str, ('time'), zlib=True)
+	datatype = nc_out.createVariable('datatype', str, ('time'), zlib=True)
 	maximumdepth = nc_out.createVariable('maximumdepth', np.float32, ('time'), zlib=True)
 
 	#Create 2D variables
@@ -232,7 +267,7 @@ for year in years:
 	# Variable Attributes
 	latitudes.units = 'degree_north'
 	longitudes.units = 'degree_east'
-	times.units = 'hours since 1900-01-01 00:00:00'
+	times.units = 'seconds since 1900-01-01 00:00:00'
 	times.calendar = 'gregorian'
 	levels.units = 'dbar'
 	levels.standard_name = "pressure"
@@ -259,13 +294,16 @@ for year in years:
 	filt = filt[np.argsort(filt_time[filt])]
 
 	#Post-2010
-	cruise_id[:] = np.array([int.from_bytes(str(i).encode('latin-1'),'big') for i in rfile['stns'].Cruiseid.values[filt]])
+	cruise_id[:] = rfile['stns'].Cruiseid.values[filt]
 	latitudes[:] = rfile['stns'].Latitude.values[filt]
 	longitudes[:] = rfile['stns'].Longitude.values[filt]
-	cruisedate[:] = np.array([int.from_bytes(str(i).encode('latin-1'),'big') for i in rfile['stns'].Date2.values[filt]])
-	cruisetime[:] = rfile['stns'].Time.values[filt]
-	stnid[:] = rfile['stns'].Stnid.values[filt]
+	cruisedate[:] = rfile['stns'].Date2.values[filt]
+	cruisetime[:] = rfile['stns'].Time.values[filt].astype(str)
+	stnid[:] = rfile['stns'].Stnid.values[filt].astype(str)
 	maximumdepth[:] = rfile['stns'].Pmax.values[filt]
+	#Add datatype to it if 2018
+	if file_name == 'database_2018':
+		datatype[:] = rfile['stns']['Data Type'].values[filt].astype(str)
 
 	#Re-format the 'data' variables into a 2D array
 	temp2D = np.full((len(filt),max_depth),np.nan)
@@ -289,13 +327,13 @@ for year in years:
 
 	#Filter 2D arrays for non-physical recordings and set to nan
 	cutoff = {
-	'temperature':	[-2,25],
+	'temperature':	[-2,35],
 	'salinity':		[0,45],
 	}
-	temp2D[temp2D <= cutoff['temperature'][0]] == np.nan
-	temp2D[temp2D >= cutoff['temperature'][1]] == np.nan
-	saln2D[saln2D <= cutoff['salinity'][0]] == np.nan
-	saln2D[saln2D >= cutoff['salinity'][1]] == np.nan
+	temp2D[temp2D <= cutoff['temperature'][0]] = np.nan
+	temp2D[temp2D >= cutoff['temperature'][1]] = np.nan
+	saln2D[saln2D <= cutoff['salinity'][0]] = np.nan
+	saln2D[saln2D >= cutoff['salinity'][1]] = np.nan
 
 	#Fill 2D structure
 	temp[:,:] = temp2D
@@ -312,5 +350,114 @@ for year in years:
 	nc_out.close()
 	print(str(year)+' done.')
 
+#Cycle through each year and convert byte variables to strings
+for year in years:
+
+	#Open the dataset
+	ds = xr.open_dataset(path+'NetCDF/'+file_name+'/'+str(year)+'_temporary.nc')
+
+	#Add the file name variable
+	ds['file_names'] = (('time'), np.tile(file_name,ds.time.size))
+
+	#Remove all casts with the following cruise_id starter
+	#These casts appear to be buoy data
+	cruise_id = ds.Cruiseid.values
+	cruise_id_filter = np.full(cruise_id.size, False)
+	for i,value in enumerate(cruise_id):
+
+		#Check to see each of the starters
+		if value.startswith('GoMoos'):
+			cruise_id_filter[i] = True
+		if value.startswith('OTN'):
+			cruise_id_filter[i] = True
+		if value.startswith('NERA'):
+			cruise_id_filter[i] = True
+		if value.startswith('79'):
+			cruise_id_filter[i] = True
+		if value.startswith('39'):
+			cruise_id_filter[i] = True
+		if value.startswith('12'):
+			cruise_id_filter[i] = True
+
+	#Filter out those casts
+	ds = ds.sel(time = ~cruise_id_filter)
+	ds = ds.sel(time = ds.datatype != 'TE') #For 2018
+	ds = ds.sel(time = ds.datatype != 'BA') #For 2018
+
+	#Remove all casts with 2 or less values
+	ds = ds.sel(time = np.sum(~np.isnan(ds.temperature),axis=1) > 3)
+
+	#Flatten the arrays to ensure they save properly
+	for i in ['Cruiseid','cruisedate','cruisetime','Stnid','file_names','datatype']:
+		ds[i] = ds[i].astype(str)
+
+	#Re-save the netcdf file
+	ds.to_netcdf(path+'NetCDF/'+file_name+'/'+str(year)+'.nc','w')
+	ds.close()
+	#Remove the temporary file
+	expr = 'rm '+path+'NetCDF/'+file_name+'/'+str(year)+'_temporary.nc'
+	os.system(expr)
+	print(str(year)+' done.')
 
 
+
+
+
+
+
+
+
+
+#Determine the usual dates for each of the different cruise ids
+#Cycle through each year and convert byte variables to strings
+for year in years:
+
+	#Open the dataset
+	ds = xr.open_dataset(path+'NetCDF/'+file_name+'/byte2str/'+str(year)+'.nc')
+
+	#Determine the number and title of unique cruise_ids
+	cruise_id, cruise_id_count = np.unique(ds.Cruiseid.values, return_counts=True)
+
+	#Determine the dates of each unique cruise_id
+	cruise_id_dates = {}
+	cruise_id_nom = {}
+	cruise_id_nos = {}
+	for i in cruise_id:
+		cruise_id_dates[i] = ds.time.values[np.where(ds.Cruiseid.values == i)]
+		cruise_id_nom[i] = np.sum(~np.isnan(ds.temperature[np.where(ds.Cruiseid.values == i)].values),
+			axis=1).mean().astype(int)
+		cruise_id_nos[i] = np.sum(~np.isnan(ds.temperature[np.where(ds.Cruiseid.values == i)].values),
+			axis=1).std().astype(int)
+
+	place1 = np.array([cruise_id_nom[i] for i in cruise_id_nom])
+
+	print(year)
+	print(np.concatenate([np.tile(value, cruise_id_count[i]) for i,value in enumerate(place1)]).mean())
+
+	#Plot the figure
+	plt.figure(figsize=(10,16))
+
+	#Cycle through each of the cruise_ids
+	for i,value in enumerate(cruise_id):
+		plt.scatter(
+			cruise_id_dates[value],
+			np.full(cruise_id_dates[value].size, i),
+			s=2, zorder=2
+			)
+
+	#Redefine the yticks
+	plt.yticks(
+		np.arange(cruise_id.size),
+		[cruise_id[ii]+', '+str(cruise_id_count[ii])+', '+\
+		str(cruise_id_nom[cruise_id[ii]])+'+/-'+\
+		str(cruise_id_nos[cruise_id[ii]]) for ii in np.arange(cruise_id.size)],
+		fontsize=8)
+	plt.grid(axis='y', zorder=1)
+	plt.title('BIO Cruise ID Count and Time of Occurence, '+str(year)+', '+str(ds.time.size)+' Casts')
+	plt.tight_layout()
+
+	plt.savefig('/gpfs/fs7/dfo/dpnm/joc000/Figures/CASTS/BIO_histogram/Cruise_ID_'+\
+		str(year)+'.png', dpi=300)
+	plt.close()
+
+	print(str(year))
