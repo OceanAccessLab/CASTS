@@ -3,7 +3,12 @@
 Port the BIO_Climate_Databases.RData file to an .nc file
 Base the structure of the .nc files from the yearly_netcdf_gen.py code
 
-Reminder. Switch to the Documents/AZMP_Fred/CCAS20 folder 
+This script converts both the Climate and BIO-OMO .RData files 
+Note. Both source are discontinued, no updates are provided for each new year
+
+Paths to .RData files are specific to sources computer, edit path variables as needed
+For BIO-OMO, two files are provided (database_2008-2017.RData and database_2018.RData)
+Change the file name variable in the second section to switch between 
 
 '''
 
@@ -174,7 +179,7 @@ for year in years[:]:
 	nc_out.close()
 	print(str(year)+' done.')
 
-#Cycle through each year and convert byte variables to strings
+#Cycle through each year and remove GTS-sources casts using the datatype variable
 for year in years:
 
 	#Open the dataset
@@ -350,7 +355,7 @@ for year in years:
 	nc_out.close()
 	print(str(year)+' done.')
 
-#Cycle through each year and convert byte variables to strings
+#Cycle through each year and remove visually suspisious cruise id casts
 for year in years:
 
 	#Open the dataset
@@ -404,60 +409,3 @@ for year in years:
 
 
 
-
-
-
-
-#Determine the usual dates for each of the different cruise ids
-#Cycle through each year and convert byte variables to strings
-for year in years:
-
-	#Open the dataset
-	ds = xr.open_dataset(path+'NetCDF/'+file_name+'/byte2str/'+str(year)+'.nc')
-
-	#Determine the number and title of unique cruise_ids
-	cruise_id, cruise_id_count = np.unique(ds.Cruiseid.values, return_counts=True)
-
-	#Determine the dates of each unique cruise_id
-	cruise_id_dates = {}
-	cruise_id_nom = {}
-	cruise_id_nos = {}
-	for i in cruise_id:
-		cruise_id_dates[i] = ds.time.values[np.where(ds.Cruiseid.values == i)]
-		cruise_id_nom[i] = np.sum(~np.isnan(ds.temperature[np.where(ds.Cruiseid.values == i)].values),
-			axis=1).mean().astype(int)
-		cruise_id_nos[i] = np.sum(~np.isnan(ds.temperature[np.where(ds.Cruiseid.values == i)].values),
-			axis=1).std().astype(int)
-
-	place1 = np.array([cruise_id_nom[i] for i in cruise_id_nom])
-
-	print(year)
-	print(np.concatenate([np.tile(value, cruise_id_count[i]) for i,value in enumerate(place1)]).mean())
-
-	#Plot the figure
-	plt.figure(figsize=(10,16))
-
-	#Cycle through each of the cruise_ids
-	for i,value in enumerate(cruise_id):
-		plt.scatter(
-			cruise_id_dates[value],
-			np.full(cruise_id_dates[value].size, i),
-			s=2, zorder=2
-			)
-
-	#Redefine the yticks
-	plt.yticks(
-		np.arange(cruise_id.size),
-		[cruise_id[ii]+', '+str(cruise_id_count[ii])+', '+\
-		str(cruise_id_nom[cruise_id[ii]])+'+/-'+\
-		str(cruise_id_nos[cruise_id[ii]]) for ii in np.arange(cruise_id.size)],
-		fontsize=8)
-	plt.grid(axis='y', zorder=1)
-	plt.title('BIO Cruise ID Count and Time of Occurence, '+str(year)+', '+str(ds.time.size)+' Casts')
-	plt.tight_layout()
-
-	plt.savefig('/gpfs/fs7/dfo/dpnm/joc000/Figures/CASTS/BIO_histogram/Cruise_ID_'+\
-		str(year)+'.png', dpi=300)
-	plt.close()
-
-	print(str(year))
