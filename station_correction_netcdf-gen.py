@@ -78,6 +78,96 @@ for year in years:
 	source[source == 'BIO-OMO'] = 'BIO-OMM'
 	ds['source'][:] = source
 
+	#Edit the attributes to be constant for each year
+	#Time
+	ds['time'].attrs['standard_name'] = 'time'
+	ds['time'].attrs['variable_name'] = 'time'
+
+	#Level
+	ds['level'].attrs['standard_name'] = 'sea_water_pressure'
+	ds['level'].attrs['maximum_level'] = '5000'
+	ds['level'].attrs['units'] = 'dbar'
+	ds['level'].attrs['variable_name'] = 'level'
+	ds['level'].attrs['example_boundary'] = 'level 0: (0, 1], level 4900: (4900,5000]'
+
+	#Temperature
+	ds['temperature'].attrs['standard_name'] = 'sea_water_potential_temperature'
+	ds['temperature'].attrs['variable_name'] = 'temperature'
+	ds['temperature'].attrs['units'] = 'degree_C'
+	ds['temperature'].attrs['valid_min'] = '-1.825'
+	ds['temperature'].attrs['valid_max'] = '35'
+	ds['temperature'].attrs['missing_value'] = 'nan'
+
+	#Salinity
+	ds['salinity'].attrs['standard_name'] = 'sea_water_practical_salinity'
+	ds['salinity'].attrs['variable_name'] = 'salinity'
+	ds['salinity'].attrs['units'] = 'psu'
+	ds['salinity'].attrs['valid_min'] = '0'
+	ds['salinity'].attrs['valid_max'] = '45'
+	ds['salinity'].attrs['missing_value'] = 'nan'
+
+	#Longitude
+	ds['longitude'].attrs['standard_name'] = 'longitude'
+	ds['longitude'].attrs['variable_name'] = 'longitude'
+	ds['longitude'].attrs['units'] = 'degree_east'
+
+	#Latitude
+	ds['latitude'].attrs['standard_name'] = 'latitude'
+	ds['latitude'].attrs['variable_name'] = 'latitude'
+	ds['latitude'].attrs['units'] = 'degree_north'
+
+	#Trip_ID
+	ds['trip_ID'].attrs['standard_name'] = 'trip_identification'
+	ds['trip_ID'].attrs['variable_name'] = 'trip_ID'
+
+	#Source
+	ds['source'].attrs['standard_name'] = 'cast_source'
+	ds['source'].attrs['variable_name'] = 'source'
+
+	#Instrument_ID
+	ds['instrument_ID'].attrs['standard_name'] = 'instrument_identification'
+	ds['instrument_ID'].attrs['variable_name'] = 'instrument_ID'
+
+	#Instrument_type
+	ds['instrument_type'].attrs['standard_name'] = 'instrument_type'
+	ds['instrument_type'].attrs['variable_name'] = 'instrument_type'
+
+	#File_names
+	ds['file_names'].attrs['standard_name'] = 'file_names'
+	ds['file_names'].attrs['variable_name'] = 'file_names'
+
+	#Station_ID
+	ds['station_ID'].attrs['standard_name'] = 'station_identification'
+	ds['station_ID'].attrs['variable_name'] = 'station_ID'
+
+	#Sounder_depth
+	ds['sounder_depth'].attrs['standard_name'] = 'sounder_depth'
+	ds['sounder_depth'].attrs['variable_name'] = 'sounder_depth'
+	ds['sounder_depth'].attrs['units'] = 'dbar'
+
+	#Station_ID_manual
+	ds['station_ID_manual'].attrs['standard_name'] = 'station_identification_manual'
+	ds['station_ID_manual'].attrs['variable_name'] = 'station_ID'
+
+	#Global Attributes
+	ds.attrs['title'] = 'Canadian Atlantic Shelf Temperature-Salinity (CASTS) Data Product, 2022, V1.0'
+	ds.attrs['institution'] = 'Northwest Atlantic Fisheries Centre, Fisheries and Oceans Canada (DFO)'
+	ds.attrs['source'] = 'https://github.com/OceanAccessLab/CASH'
+	ds.attrs['reference'] = 'Currently NA'
+	ds.attrs['description'] = 'Temperature and salinity cast records from the CASTS Dataset'
+	ds.attrs['comment'] = 'No constraints on data access or use'
+	ds.attrs['Conventions'] = 'CF-1.6'
+	ds.attrs['DOI'] = 'https://doi.org/10.20383/102.0739'
+	ds.attrs['creator_names'] = 'Frederic Cyr, Jonathan Coyne'
+	ds.attrs['creator_emails'] = 'frederic.cyr@dfo-mpo.gc.ca, jonathan.coyne@dfo-mpo.gc.ca'
+	ds.attrs['geospatial_lon_max'] = '-42degE'
+	ds.attrs['geospatial_lon_min'] = '-100degE'
+	ds.attrs['geospatial_lat_min'] = '35degN'
+	ds.attrs['geospatial_lat_max'] = '80degN'
+	ds.attrs['file_year'] = year
+	ds.attrs['keywords'] = 'Ocean Science, Ocean Temperature, Ocean Salinity, Historical Data'
+
+
 	#Flatten the arrays to ensure they save properly
 	for i in ['trip_ID','source','instrument_ID','instrument_type','file_names','station_ID','station_ID_manual','sounder_depth']:
 		ds[i] = ds[i].astype(str)
