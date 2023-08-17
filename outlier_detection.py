@@ -24,8 +24,11 @@ There will be some human-decided factors that need to be kept track of for this 
 '''
 #######################################################################################
 
+
+
+
 #Background info
-source = 'netcdf_gen'
+source = 'combined'
 variable_name = 'instrument_ID' #reference the header info
 
 #Meshgrid lat/lon
@@ -37,9 +40,9 @@ y = np.arange(35, 80, dc)
 lon, lat = np.meshgrid(x,y)
 
 #Cycle through each year
-years = np.arange(1912,2021+1)
+years = np.arange(1912,2022+1)
 
-for i in np.arange(years.shape[0])[1:]:
+for i in np.arange(years.shape[0])[:]:
 
 	#Load in the specific data
 	path = '/gpfs/fs7/dfo/dpnm/joc000/Data/AZMP/Data_Input/NetCDF_Gen/empties_duplicates/empties/'
@@ -48,10 +51,12 @@ for i in np.arange(years.shape[0])[1:]:
 	ds_lons = np.array(ds.longitude)
 	ds_lats = np.array(ds.latitude)
 	ds_temp = np.array(ds.temperature)
+	ds_saln = np.array(ds.salinity)
 	ds.close()
 
 	#Create an empty array for all the binned measurements
 	temp_3D = np.full((12,2000,y.shape[0]-1,x.shape[0]-1),np.nan)
+	saln_3D = np.full((12,2000,y.shape[0]-1,x.shape[0]-1),np.nan)
 
 	#Cycle through each of the months present
 	for ii in np.unique(ds_time):
@@ -59,7 +64,7 @@ for i in np.arange(years.shape[0])[1:]:
 		#Cycle through each depth:
 		for iii in np.arange(2000):
 
-			#Determine if any measurements are present at this depth
+			#Determine if any temperature measurements are present at this depth
 			if np.isnan(ds_temp[:,iii][ds_time == ii]).all():
 				None #No measurements present at this depth during this month
 
@@ -77,7 +82,25 @@ for i in np.arange(years.shape[0])[1:]:
 				#Record in the binned temperature
 				temp_3D[ii-1,iii,:,:] = place1.T
 
-	#Save the temperature for each month 
+			#Determine if any salinity measurements are present at this depth
+			if np.isnan(ds_saln[:,iii][ds_time == ii]).all():
+				None #No measurements present at this depth during this month
+
+			else:
+				#Bin the salinity into the pre-defined latitudes and longitudes for specific months
+				warnings.simplefilter("ignore", category=RuntimeWarning)
+				place1 = stats.binned_statistic_2d(
+					ds_lons[ds_time == ii],
+					ds_lats[ds_time == ii],
+					ds_saln[:,iii][ds_time == ii],
+					np.nanmean,
+					bins=[lon[0,:],lat[:,0]]
+					).statistic
+
+				#Record in the binned salinity
+				saln_3D[ii-1,iii,:,:] = place1.T
+
+	#Save the temperature and salinity for each month 
 	#Cycle through each month to save
 	for ii in np.arange(1,12+1):
 
@@ -109,9 +132,14 @@ for i in np.arange(years.shape[0])[1:]:
 		latitudes = nc_out.createVariable('latitude', np.float64, ('latitude',))
 		longitudes = nc_out.createVariable('longitude', np.float64, ('longitude',))
 
-		#Create the temperature variable
+		#Create the temperature and salinity variables
 		temp = nc_out.createVariable(
 			'temperature', 
+			np.float64, 
+			('time','level','latitude','longitude'), 
+			zlib=True, fill_value=-9999)
+		saln = nc_out.createVariable(
+			'salinity', 
 			np.float64, 
 			('time','level','latitude','longitude'), 
 			zlib=True, fill_value=-9999)
@@ -127,9 +155,13 @@ for i in np.arange(years.shape[0])[1:]:
 		temp.units = 'Celsius'
 		temp.long_name = "Water Temperature" # (may be use to label plots)
 		temp.standard_name = "sea_water_temperature"
+		saln.units = 'psu'
+		saln.long_name = 'Salinity'
+		saln.standard_name = 'Salinity'
 
-		#Save the temperature
+		#Save the temperature and salinity
 		temp[0,:,:,:] = temp_3D[ii-1]
+		saln[0,:,:,:] = saln_3D[ii-1]
 
 		#Convert to time stamps
 		months = np.datetime64(str(years[i])+'-'+"%.2d" % ii)
@@ -214,7 +246,7 @@ path = '/gpfs/fs7/dfo/dpnm/joc000/Data/AZMP/Data_Input/NetCDF_Gen/empties_duplic
 path_clim = '/gpfs/fs7/dfo/dpnm/joc000/Data/AZMP/Data_Input/NetCDF_Gen/empties_duplicates/climatology/'
 
 #Cycle through each year
-for year in np.arange(2002,2021+1):
+for year in np.arange(1912,2022+1)[:9]:
 
 	#Isolate the .nc data
 	pfile = xr.open_dataset(path+'empties/'+str(year)+'.nc')
@@ -242,92 +274,109 @@ for year in np.arange(2002,2021+1):
 
 		distance_to_land[i] = np.min(c*R)
 
-	#Define a mask for the temperatures
-	clim_mask = np.zeros((time.size,pfile.level.size),dtype=bool)
+	#Define a mask for the temperatures and salinities
+	clim_mask = {}
 
-	#Cycle through each month
-	for i in np.unique(time):
+	#Cycle through each variable
+	for i in ['temperature','salinity']:
+		clim_mask[i] = np.zeros((time.size,pfile.level.size),dtype=bool)
 
-		month_filt = (pfile['time.month'] == i).values
-		#Load in the temperature data for the month
-		temp = pfile.temperature[month_filt].values
+		#Cycle through each month
+		for ii in np.unique(time):
 
-		#Import the corresponding climatology mean and stdv
-		ds_mean = xr.open_dataset(path_clim+'finished/netcdf_gen-mean-'+"%.2d" % i+'_climatology.nc')
-		ds_stdv = xr.open_dataset(path_clim+'finished/netcdf_gen-stdv-'+"%.2d" % i+'_climatology.nc')
+			month_filt = (pfile['time.month'] == ii).values
+			#Load in the temperature or salinity data for the month
+			var = pfile[i][month_filt].values
+			
+			#Import the corresponding climatology mean and stdv
+			ds_mean = xr.open_dataset(path_clim+'finished/climatology-mean-'+"%.2d" % ii+'.nc')
+			ds_stdv = xr.open_dataset(path_clim+'finished/climatology-stdv-'+"%.2d" % ii+'.nc')
 
-		lon_mean,lat_mean = np.meshgrid(ds_mean.longitude.values, ds_mean.latitude.values)
+			lon_mean,lat_mean = np.meshgrid(ds_mean.longitude.values, ds_mean.latitude.values)
 
-		#Cycle through each level
-		for ii in np.arange(pfile.level.size):
-			#First, determine if the month is empty
-			if temp.size == 0:
-				None #Skip it
-
-			else:
-				#Second determine if the level is empty
-				if np.isnan(temp[:,ii]).sum() == temp.shape[0]:
-					clim_mask[month_filt][:,ii] = False
+			#Cycle through each level
+			for iii in np.arange(pfile.level.size):
+				#First, determine if the month is empty
+				if var.size == 0:
+					None #Skip it
 
 				else:
-					#Interpolate the gridded structure to the lat and lon locations for the month
-					depth_filt = np.isnan(temp[:,ii])
-					mean = np.full(depth_filt.size,np.nan)
-					stdv = np.full(depth_filt.size,np.nan)
+					#Second determine if the level is empty
+					if np.isnan(var[:,iii]).sum() == var.shape[0]:
+						clim_mask[i][month_filt][:,iii] = False
 
-					mean[~depth_filt] = interpolate.griddata(
-						np.array((lon_mean.flatten(),lat_mean.flatten())).T,
-						ds_mean.temperature[ii].values.flatten().T,
-						(lons[month_filt][~depth_filt],lats[month_filt][~depth_filt])
-						)
-					stdv[~depth_filt] = interpolate.griddata(
-						np.array((lon_mean.flatten(),lat_mean.flatten())).T,
-						ds_stdv.temperature[ii].values.flatten().T,
-						(lons[month_filt][~depth_filt],lats[month_filt][~depth_filt])
-						)
-					#Set 0 stdv to nan, issue with interpolate.griddata
-					stdv[stdv <= 0] = np.nan
-
-					#First isolate for casts within 1000km of land
-					close_to_land = (distance_to_land < 1000)
-
-					#Second, determine if the depth is less than 50m
-					#If so, the climatology threshold is set at 5 times
-					if ii <= 50:
-						clim_mask[month_filt*(close_to_land),ii] = (np.abs(\
-							temp[close_to_land[month_filt],ii]-\
-							mean[close_to_land[month_filt]]) > (\
-							stdv[close_to_land[month_filt]]*5))
-
-						#For all others, set at 3 stdv
-						#Determine if the absolute anomaly is greater than 3*stdv
-						clim_mask[month_filt*(~close_to_land),ii] = (np.abs(\
-							temp[~close_to_land[month_filt],ii]-\
-							mean[~close_to_land[month_filt]]) > (\
-							stdv[~close_to_land[month_filt]]*3))
 					else:
+						#Interpolate the gridded structure to the lat and lon locations for the month
+						depth_filt = np.isnan(var[:,iii])
+						mean = np.full(depth_filt.size,np.nan)
+						stdv = np.full(depth_filt.size,np.nan)
 
-						#If the depth is greater than 50m, always use 3*stdv
-						clim_mask[month_filt,ii] = (np.abs(temp[:,ii] - mean ) > (stdv*3))
+						mean[~depth_filt] = interpolate.griddata(
+							np.array((lon_mean.flatten(),lat_mean.flatten())).T,
+							ds_mean[i][iii].values.flatten().T,
+							(lons[month_filt][~depth_filt],lats[month_filt][~depth_filt])
+							)
+						stdv[~depth_filt] = interpolate.griddata(
+							np.array((lon_mean.flatten(),lat_mean.flatten())).T,
+							ds_stdv[i][iii].values.flatten().T,
+							(lons[month_filt][~depth_filt],lats[month_filt][~depth_filt])
+							)
+						#Set 0 stdv to nan, issue with interpolate.griddata
+						stdv[stdv <= 0] = np.nan
 
-		ds_mean.close()
-		ds_stdv.close()
+						#First isolate for casts within 1000km of land
+						close_to_land = (distance_to_land < 1000)
 
-	#Change the clim_mask into a nan (true), 1 (false) mask
-	clim_mask = clim_mask.astype(float)
-	clim_mask[clim_mask == 1.] = np.nan 
-	clim_mask[clim_mask == 0.] = 1.
+						#Second, determine if the depth is less than 50m
+						#If so, the climatology threshold is set at 5 times
+						if iii <= 50:
+							clim_mask[i][month_filt*(close_to_land),iii] = (np.abs(\
+								var[close_to_land[month_filt],iii]-\
+								mean[close_to_land[month_filt]]) > (\
+								stdv[close_to_land[month_filt]]*5))
 
-	#If there are over a certain number of outlier measurements in the cast, the whole cast is discarded
-	pfile['temperature'] = pfile.temperature*clim_mask
+							#For all others, set at 3 stdv
+							#Determine if the absolute anomaly is greater than 3*stdv
+							clim_mask[i][month_filt*(~close_to_land),iii] = (np.abs(\
+								var[~close_to_land[month_filt],ii]-\
+								mean[~close_to_land[month_filt]]) > (\
+								stdv[~close_to_land[month_filt]]*3))
+						else:
 
-	#If the number of outliers for a cast exceeds 10, remove the whole cast
-	num_of_outliers = np.isnan(clim_mask).sum(axis=1)
-	pfile = pfile.sel(time=num_of_outliers <= 10)
+							#If the depth is greater than 50m, always use 3*stdv
+							clim_mask[i][month_filt,iii] = (np.abs(var[:,iii] - mean ) > (stdv*3))
 
-	#If the cast is now completely empty, remove
-	empty_casts = np.isnan(pfile.temperature.values).sum(axis=1) == 2000
-	pfile = pfile.sel(time=~empty_casts)
+			ds_mean.close()
+			ds_stdv.close()
+
+		#Change the clim_mask into a nan (true), 1 (false) mask
+		clim_mask[i] = clim_mask[i].astype(float)
+		clim_mask[i][clim_mask[i] == 1.] = np.nan 
+		clim_mask[i][clim_mask[i] == 0.] = 1.
+
+		#If there are over a certain number of outlier measurements in the cast, the whole cast is discarded
+		pfile[i] = pfile[i]*clim_mask[i]
+
+
+	#If the number of outliers for a cast exceeds 10 in both the temp and saln, remove the whole cast
+	num_of_outliers = {}
+	for i in clim_mask.keys():
+		num_of_outliers[i] = np.isnan(clim_mask[i]).sum(axis=1)
+	pfile = pfile.sel(time=(num_of_outliers['temperature'] + num_of_outliers['salinity']) <= 10*2)
+
+	#Flatten the values inside the string variables
+	for ii in ['trip_ID','comments','instrument_ID','instrument_type','file_names']:
+		pfile[ii] = pfile[ii].astype(str)
+
+	#If the cast is now completely empty for both temp and saln, remove
+	empty_casts = {}
+	for i in clim_mask.keys():
+		empty_casts[i] = np.isnan(pfile[i].values).sum(axis=1) == 2000
+	pfile = pfile.sel(time=~(empty_casts['temperature']*empty_casts['salinity']))
+
+	#Flatten the values inside the string variables
+	for ii in ['trip_ID','comments','instrument_ID','instrument_type','file_names']:
+		pfile[ii] = pfile[ii].astype(str)
 
 	#Compress the variables for file size management 
 	comp = dict(zlib=True, complevel=5)
