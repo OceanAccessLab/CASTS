@@ -32,7 +32,7 @@ path = '/gpfs/fs7/dfo/dpnm/joc000/Data/AZMP/Data_Input/NetCDF_Gen/'
 
 #First, create a list of .nc files in each path
 #nc_list = glob.glob(path+'*.nc')
-nc_list = [path+i+'.nc' for i in np.arange(1912,2022+1).astype(str)]
+nc_list = [path+i+'.nc' for i in np.arange(1912,2023+1).astype(str)]
 
 for i in np.sort(nc_list)[:]:
 

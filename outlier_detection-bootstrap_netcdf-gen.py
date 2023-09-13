@@ -250,7 +250,7 @@ for i in np.arange(12)[:]:
 
 
 #Cycle through the years
-for year in np.arange(1912,2022+1).astype(str)[:]:
+for year in np.arange(1912,2023+1).astype(str)[:]:
 
 	#Import the netcdf dataset, one year at a time
 	#path = '/gpfs/fs7/dfo/dpnm/joc000/Data/AZMP/Data_Products/combined_depth_filtered/'

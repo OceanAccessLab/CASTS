@@ -180,6 +180,14 @@ for year in years:
 	ds.close()
 	print(year+' done.')
 
+
+#Cycle through and ensure that the time dimension is unlimited (for concatenation)
+path = '/gpfs/fs7/dfo/dpnm/joc000/Data/AZMP/Data_Products/final_product/'
+for year in np.arange(1912,2022+1).astype(str)[:]:
+	exp = 'ncks --mk_rec_dmn time '+path+year+'.nc '+path+year+'.nc'
+	os.system(exp)
+	print(year+' done.')
+
 #Cycle through all the files and compress them
 #Right now this needs to be done from nc_old after files have been moved there manually, not cool
 path = '/gpfs/fs7/dfo/dpnm/joc000/Data/AZMP/Data_Products/final_product/'

@@ -26,11 +26,11 @@ The cast which contains more temperature recordings is kept.
 
 #Create a list of files made with the outliers removed
 path = '/gpfs/fs7/dfo/dpnm/joc000/Data/AZMP/Data_Input/NetCDF_Gen/empties_duplicates/'
-nc_list = [path+'empties/'+i+'.nc' for i in np.arange(1912,2022+1).astype(str)]
+nc_list = [path+'empties/'+i+'.nc' for i in np.arange(1912,2023+1).astype(str)]
 
 
 #Cycle through each year
-for i in np.sort(nc_list)[-28:]:
+for i in np.sort(nc_list)[:]:
 
 	#Load the .nc file, now with no empties
 	pfile = xr.open_dataset(i)

@@ -29,7 +29,7 @@ If a duplicate does exist in the netcdf_gen files, take the BIO_Climate data ins
 
 
 #Import the data by year
-years = np.arange(1912,2022+1).astype(str)
+years = np.arange(1912,2023+1).astype(str)
 path = {}
 path['path1'] = '/gpfs/fs7/dfo/dpnm/joc000/Data/AZMP/Data_Input/CCAS20/NetCDF/BIO_Climate_Databases/' #BIO, 1913-2010
 path['path2'] = '/gpfs/fs7/dfo/dpnm/joc000/Data/AZMP/Data_Input/CCAS20/NetCDF/database_2008-2017/' #BIO, 2008-2017
