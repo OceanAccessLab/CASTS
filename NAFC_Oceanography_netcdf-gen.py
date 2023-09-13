@@ -10,7 +10,7 @@ import pandas as pd
 
 '''
 
-Port the NAFC .pfile files to an .nc file
+Port the NAFC .pfile files to an .nc file (1912-2022)
 Base the structure of the .nc files from the yearly_netcdf_gen.py code
 
 Charlie Bishop provides .pfiles (local ASCII file type) for each cast
